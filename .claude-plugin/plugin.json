@@ -1,7 +1,7 @@
 {
-  "name": "sui-deepbook-course",
-  "version": "1.0.0",
-  "description": "Interactive Sui DeepBook course for advanced DeFi developers — guided lessons driven from Claude Code via an MCP server, with preflight diagnostics and an escalating help ladder.",
+  "name": "acc-deepbook-course",
+  "version": "0.1.0",
+  "description": "DeepBook content for the Agentic Community College (ACC) framework. Bundles a set of hands-on lessons that walk learners through building Sui DeepBook integrations end-to-end.",
   "author": {
     "name": "alilloig"
   },
@@ -10,17 +10,10 @@
     "deepbook",
     "defi",
     "course",
-    "tutorial",
-    "mcp",
-    "interactive-learning"
+    "lesson",
+    "acc-content"
   ],
-  "commands": ["./commands/start.md"],
-  "agents": ["./agents/course-conductor.md"],
-  "skills": "./skills/",
-  "mcpServers": {
-    "sui-deepbook-course": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server/dist/index.js"]
-    }
+  "accContent": {
+    "lessons": "./lessons/"
   }
 }

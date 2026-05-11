@@ -1,120 +1,51 @@
-# Sui DeepBook Course
+# acc-deepbook-course — Claude's working notes
 
-A Claude Code plugin that turns a Claude Code session into an interactive coding tutor for advanced Sui / DeepBook developers. Users register the plugin and type `/sui-deepbook-course:start` — they do **not** run a standalone CLI.
+A content plugin for the [Agentic Community College (ACC)](https://github.com/alilloig/agentic-community-college) framework. Bundles the DeepBook lessons. **No runtime code here** — the framework owns that.
 
-The user-facing onboarding doc is `SUI_DEEPBOOK_COURSE_FOR_DUMMIES.md`. This file is for Claude's context when working on the code.
+If you're looking at this repo with confusion, the directory may still be named `sui-mcp-course/` on disk while the plugin name has been updated to `acc-deepbook-course`. The directory rename + GitHub repo rename are manual user actions; they're cosmetic, since the plugin manifest is what Claude Code reads.
 
-## What This Actually Is
+## What you can do here
 
-- A Claude Code plugin manifest (`.claude-plugin/plugin.json`).
-- An **MCP server** at `mcp/server/` (TypeScript, ESM, Node 18+, MCP SDK + zod) that exposes nine tools the LLM uses to drive lessons.
-- A **course-conductor agent** (`agents/course-conductor.md`) that runs the per-spot loop.
-- A **course-engine skill** (`skills/course-engine/SKILL.md`) wired to the `/sui-deepbook-course:start` slash command.
-- One **learning path** so far: `paths/01-orderbook-viewer/` (3 phases, TypeScript work against deepbook-sandbox).
+- **Author a new lesson** — don't write files by hand. Invoke ACC's `lesson-creator` skill and point it at this repo + a reference codebase. The skill emits the entire `lessons/<slug>/` tree.
+- **Refine an existing lesson** — edit `lessons/<slug>/{lesson.json, sections.json, sections/*.md, artifact/template.html, tests/}` directly. Re-run the lesson-creator's validation pass after edits to confirm the prompts still produce passing tests in both output modes.
+- **Add a new test** — `lessons/<slug>/tests/` is the equivalence gate. Tests run via vitest from inside the lesson's seeded workspace (`~/.acc/workspaces/<slug>/`).
 
-There is **no `packages/` monorepo, no Commander.js CLI, no `create-deepbook-course` wrapper, no `@clack/prompts`**. Earlier design notes (`create-mastra-architecture-report.md`) describe a path that was abandoned. Treat them as history, not guidance.
+## What NOT to do here
 
-## Tech Stack
+- Don't add MCP server code, agents, or framework skills. Those live in `agentic-community-college`.
+- Don't add a `commands/` or top-level `agents/` directory; the plugin manifest declares no commands/agents/skills for a reason (it's content-only).
 
-- TypeScript (ESM, `"type": "module"`), Node >= 18
-- pnpm workspaces — only `mcp/server` is currently a workspace member
-- `@modelcontextprotocol/sdk` ^1.0.0
-- `zod` for tool input schemas
-- `vitest` for tests (run with `pnpm test` from the root)
+## Schema reference
 
-## Build & Test
+Every lesson directory follows the shape:
 
-```bash
-pnpm install                                  # root install
-cd mcp/server && pnpm install && pnpm build   # produces dist/index.js
-pnpm test                                     # vitest, from root
+```
+lessons/<slug>/
+├── lesson.json            slug, title, summary, personalization, workspace, artifact
+├── description.md         rendered before personalization in the conductor
+├── sections.json          ordered section sequence + final_verification
+├── sections/              one .md per section (the prompt bodies)
+├── reference-app/         hard copy of the reference codebase + offline fixtures
+├── tests/                 unit / scenario / e2e (vitest)
+├── artifact/template.html self-contained evolving HTML; copied into the workspace
+├── hosts/                 (when present) Vite hosts for F-005 workspace lifecycle
+└── validation.json        per-mode test results, emitted by lesson-creator
 ```
 
-The plugin manifest spawns `node mcp/server/dist/index.js` over stdio, so `pnpm build` is required after any change in `mcp/server/src/`.
+Schema validators live in `agentic-community-college/mcp/server/src/schemas/{lesson,sections}.ts`. When in doubt about what a field means or what's required, read those files — they're the source of truth.
 
-## Component Map
+## Personalization placeholders
 
-| Path | Role |
-|---|---|
-| `mcp/server/src/index.ts` | MCP entry; registers 9 tools and connects `StdioServerTransport` when run as a script. |
-| `mcp/server/src/tools/*.ts` | One file per MCP tool (`start`, `selectPath`, `setPersonalization`, `selectStyle`, `nextSpot`, `verifySpot`, `requestHint`, `getNextPrompt`, `runPreflightProbe`). |
-| `mcp/server/src/pathsRoot.ts` | F-001 — `resolvePathsRoot` / `resolvePathContentRoot`. Routes path content through the plugin install dir (derived from `process.argv[1]`) when the user's projectRoot has no local `paths/` dir. |
-| `mcp/server/src/editorOpen.ts` | F-004 — builds a `tmux split-window` invocation when `$TMUX` and a recognized `$EDITOR` are set. nextSpot embeds it as `tmux_open_command` in the spot view. |
-| `mcp/server/src/preflight.ts` | Frozen `PROBE_ORDER` + probe registry. |
-| `mcp/server/src/probes/*.ts` | One file per probe. |
-| `mcp/server/src/state.ts` | State load/save with corruption archiving and atomic writes. |
-| `mcp/server/src/workspace.ts` | F-005 — lesson workspace lifecycle: `prepareWorkspace`, `resetWorkspace`, host-signature fingerprinting, atomic metadata writes. |
-| `mcp/server/src/registry.ts` | Scans `paths/`, validates `path.json` + `phases.json` together. |
-| `mcp/server/src/phaseEngine.ts` | Phase/spot loading, current-spot resolution, cursor advancement. |
-| `mcp/server/src/personalization.ts` | `{{ key }}` substitution and option validation. |
-| `mcp/server/src/ladder.ts` | Rung gating and `runAutoWrite` (rung 3). |
-| `mcp/server/src/outputStyle.ts` | Gates every tool by reading `~/.claude/settings.json`. |
-| `mcp/server/src/pathSafety.ts` | `containedPath` guard for rung-3 file writes. |
-| `mcp/server/src/schemas/{path,phases,state,workspace}.ts` | Hand-rolled validators (no zod for these). `workspace.ts` schema (F-005) covers `WorkspaceMeta` for the per-workspace `.course-state.json`. |
-| `paths/<slug>/path.json` | Path manifest (slug, title, summary, personalization options + ranges, build_command, optional `workspace` block). |
-| `paths/<slug>/phases.json` | Ordered phases → spots, each with `target_file`, `target_range`, `prompt`, `verification`, `rungs`, `doc_links`, optional `styles` block. |
-| `paths/<slug>/phases/*.md` | Long-form phase explainer rendered alongside the first spot. |
-| `paths/<slug>/rungs/<spot-id>/{hint,reference,auto}.md` | The three help rungs per spot. |
-| `paths/<slug>/starters/<spot-id>/<file>` | F-005 — Style A starter files copied into the workspace by `prepareWorkspace`. |
-| `paths/<slug>/hosts/<host-name>/` | F-005 — Vite host (package.json, vite.config, tsconfig*, index.html, src/main.tsx) seeded into the workspace alongside starters. |
-| `paths/<slug>/prompts/` | F-005 reservation — Style B prompt sequences. PR 2 populates them; PR 1 ships an empty placeholder. |
-| `paths/<slug>/reference/` | Reference implementations for rung 2 / rung 3 to copy from. |
-| `tests/*.test.ts` | Vitest suites — unit + harness-level integration tests. |
-| `commands/start.md` | `/sui-deepbook-course:start` → delegates to the course-engine skill. |
-| `agents/course-conductor.md` | Spot-loop contract (used after path selection). |
+Section bodies can contain `{{ key }}` placeholders that the conductor substitutes against the user's personalization values. Substitution is **scoped to section bodies only** — never put `{{ ... }}` inside `target_file`, `verification.command`, or any path. (Path-traversal guard.)
 
-## Architectural Invariants (do not break)
+The course-injected placeholder `{{ workspace_path }}` is reserved (resolved by the conductor server-side); don't shadow it with a personalization key of the same name.
 
-1. **Output-style gate runs before any state load** in every gated tool (`selectPath`, `setPersonalization`, `selectStyle`, `nextSpot`, `verifySpot`, `requestHint`, `getNextPrompt`). The pattern is: probe `outputStyleOk` → return `output-style-disabled` early → only then `loadState`. Codebase calls this "L002 carry-forward". When adding new gated tools, replicate this ordering.
-2. **`paths/` registry validates `path.json` AND `phases.json` together.** A path that has a valid `path.json` but malformed `phases.json` is dropped from the registry and emitted as a warning. Don't relax this — cycle 4 onward depends on phases being load-bearing.
-3. **Rung gating is enforced server-side** as defense-in-depth even though the agent also enforces it. Rung 2 requires `hint_used: true`. Rung 3 requires `reference_shown: true`. Violations return a `rung-out-of-order` structured error.
-4. **Rung 3 (auto-write) goes through `requestHint` MCP only.** Never add a Bash side-channel for file mutation. For workspace-aware paths the server snapshots the original to `<workspace>/.course-snapshots/...`; for legacy paths (no workspace block) snapshots fall back to `<projectRoot>/.sui-deepbook-course/snapshots/...`. Either way, replace + auto-verify happen in one transaction.
-5. **State writes are atomic.** `state.ts:saveState` writes to a `tmp` file with `wx` + `0o600`, fsyncs via `FileHandle.sync()`, then renames over the canonical path. Don't replace this with a plain `writeFile`. The same pattern is mirrored in `workspace.ts:saveWorkspaceMeta` for `<workspace>/.course-state.json`.
-6. **Corrupt state recovery is two-tier.** If `state.json` is unreadable JSON / fails schema validation, the bytes are archived under `.sui-deepbook-course/state.corrupt-<sha256-prefix>.json` (deduped via `wx` flag, mode `0o600`) and the slot is treated as absent on the next `selectPath`. If the archive write itself fails (full disk / EACCES), `selectPath` returns an error telling the user to delete `state.json` manually — do not silently swallow that case.
-7. **`{{ ... }}` substitution is scoped to spot prompts only.** `personalization.ts:substitutePromptOnly` is the only function that performs it. Never call it on `target_file`, `target_range`, `verification.command`, or `verification.endpoint` — those are not user-controlled surfaces and substitution there would be a path-traversal vector. F-005 added two course-injected variables — `workspace_path` and `target_file_absolute` — that path-authored prompts can reference; both are computed server-side, never accepted as input.
-8. **Verification spawn is injectable.** `runVerification` accepts a `spawn` stub via `VerifySpotOptions.spawn` for hermetic tests (cycle-4 H001 fix). Don't re-introduce a module-level test override.
-9. **`auto_completed` is permanent** once set by a successful rung 3. It is never cleared — not on retry, not on session restart, not on path reset short of deleting `state.json`.
-10. **Preflight is skipped in cycle 1.** `start` always returns `preflight: { skipped: true, reason: "cycle-1" }`. Probes only run via `runPreflightProbe` on subsequent cycles. Do not move probe execution into `start`.
-11. **Workspaces are course-owned and idempotent (F-005).** `prepareWorkspace` lives at `~/.sui-deepbook-course/workspaces/<slug>/`, fingerprints the path's `hosts/` tarball into `host_signature`, and reuses an existing workspace iff that signature matches. Mismatch → archive to `<workspace>.archive-<ts>/` and recreate. The lesson `pnpm build` runs **inside the workspace**, not in projectRoot. Tests inject a stub spawn via `WorkspaceOptions.spawn` (mirrors the verify-spawn seam) and override `WorkspaceOptions.basePath` for hermetic temp dirs.
-12. **State schema versioning.** `STATE_SCHEMA_VERSION` is 3 (cycle 4 = 1, F-005 = 2 for `workspace_path` + `selected_style_per_spot`, PR 2 = 3 for `prompt_cursor_per_spot`). Bumping it follows the existing recovery flow — `loadState` returns `kind: 'schema-mismatch'`, `selectPath` short-circuits with the warning, and the learner re-runs `selectPath` to mint a fresh v(N) state. Never silently coerce a v(N-1) state into v(N).
-13. **Path content lives at the plugin install root, not under projectRoot (F-001).** `pathsRoot.ts:resolvePathsRoot` / `resolvePathContentRoot` are the only correct ways to compute a paths-root path. They prefer `<projectRoot>/paths/` when it exists with at least one subdirectory (dev iteration in this repo), and fall back to `<pluginRoot>/paths/` derived via `fs.realpathSync(argv[1])` walking up to a directory whose `.claude-plugin/plugin.json` exists. When adding code that reads `paths/<slug>/...`, route through these helpers — never hard-code `path.join(projectRoot, 'paths', ...)`.
+## How a session runs (end-to-end)
 
-## Verification Modes
-
-`verify.ts:runVerification` supports two modes today. Anything else throws `VerificationModeUnsupportedError`:
-
-- **`compile`** — spawn `verification.command` (defaulting to path's `build_command`) in `projectRoot`. Pass = exit 0.
-- **`simulate`** — `fetch(verification.endpoint)` and compare against `verification.expected_status`.
-
-## Preflight Probes (frozen order)
-
-`docker-running` → `node-version` → `pnpm-available` → `sui-cli-version` → `sui-pilot-enabled` → `sandbox-repo-present` → `sandbox-manifest-reachable` → `learning-output-style-enabled`.
-
-Only `sandbox-manifest-reachable` returns a remediation `ShellAction` (`pnpm deploy-all --quick` in `~/workspace/deepbook-sandbox/sandbox`). Real-mode remediation is gated by `docker-running`, `sui-cli-version`, and `sandbox-repo-present` passing first. `E2E_DEPLOY_STUB=1` is the **sole** entry to the deterministic test stub.
-
-## Personalization
-
-Path declares `personalization_options: ["poll_interval_ms", "pool_subset"]` plus `personalization_ranges`. The current path uses:
-
-- `poll_interval_ms`: integer 1000–30000, default 3000
-- `pool_subset`: enum `both` | `DEEP_SUI` | `SUI_USDC`, default `both`
-
-Empty `setPersonalization({ values: {} })` accepts all defaults — that's a feature, not a bug.
-
-## Sui Move Notes
-
-This repo currently has no Move sources. The lessons it teaches involve TypeScript SDK code in a separate sandbox repo (`~/workspace/deepbook-sandbox`). When extending lessons that touch Move, follow the global `sui-pilot` doc-first workflow imported via `~/.claude/CLAUDE.md`.
-
-## When You Edit MCP Server Code
-
-1. Edit under `mcp/server/src/`.
-2. Run `pnpm build` from `mcp/server` (the plugin runs the *built* `dist/index.js`, not the source).
-3. Run `pnpm test` from the repo root — the harness suite covers cross-tool flows; unit suites cover individual modules.
-4. Restart Claude Code if the plugin is already loaded; MCP servers don't hot-reload.
-
-## When You Author a New Path
-
-1. Create `paths/<slug>/{path.json, phases.json}` matching the existing schemas.
-2. Add `phases/<phase-id>.md` explainers and `rungs/<spot-id>/{hint,reference,auto}.md`.
-3. (Optional) Add `reference/` files for rung 2 to point at.
-4. Run the harness lesson tests (`tests/harness.lesson.test.ts`) to confirm registry, phase loading, and personalization round-trip work.
+1. User runs `/agentic-community-college:start` from their `projectRoot`.
+2. ACC's `course-engine` skill calls `start` MCP tool → discovers this plugin via `~/.claude/plugins/installed_plugins.json`, validates every lesson manifest pair, and renders the catalog.
+3. User picks a namespaced slug → `selectLesson` mints v4 state at `<projectRoot>/.acc/state.json`, seeds the workspace at `~/.acc/workspaces/<slug>/` from the lesson's `reference-app` + host files.
+4. User picks `learning` or `explanatory` → `setOutputMode` persists.
+5. User answers personalization (or accepts defaults) → `setPersonalization`.
+6. `course-conductor` agent loops: `advanceArtifact` → `nextSection` → user/agent edits → `verifySection` → repeat.
+7. On the final section's `verifySection`, the lesson's `final_verification` (vitest) gates completion.

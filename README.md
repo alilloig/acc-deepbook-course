@@ -1,150 +1,42 @@
-# Sui DeepBook Course
+# acc-deepbook-course
 
-A Claude Code plugin that turns "go learn DeepBook" into an interactive, hint-laddered build session. The student owns the 5–10 load-bearing lines per phase. Claude is the patient TA, not the implementer.
+A **content plugin** for the [Agentic Community College (ACC)](https://github.com/alilloig/agentic-community-college) framework. This repo ships a curated set of DeepBook lessons; the ACC plugin owns the runtime that actually drives them.
 
-First path shipping: **`01-orderbook-viewer`** — rebuild a real-time DeepBook v3 order book viewer (Vite + React + TypeScript) against the local DeepBook sandbox.
+This repository was previously `sui-mcp-course` and bundled both runtime + content. The runtime moved to `agentic-community-college` so the same engine can host courses for Walrus, Seal, Move, etc. without a fork.
 
----
+## How it plugs in
 
-## Install
+`.claude-plugin/plugin.json` declares:
 
-In a Claude Code session:
-
-```
-/plugin marketplace add contract-hero/plugin-marketplace
-/plugin install sui-deepbook-course@contract-hero
-```
-
-Restart Claude Code so the MCP server spawns correctly. The course's preflight will diagnose any missing system dependencies and walk you through installing them — you don't need to set anything up ahead of time.
-
-The one exception worth installing in advance is the Sui CLI, since it has multiple install paths. The recommended one is [`suiup`](https://github.com/MystenLabs/suiup):
-
-```bash
-curl -sSfL https://raw.githubusercontent.com/Mystenlabs/suiup/main/install.sh | sh
-suiup install sui@testnet
+```json
+{
+  "name": "acc-deepbook-course",
+  "accContent": { "lessons": "./lessons/" }
+}
 ```
 
-`brew install sui` works too, but `suiup` manages multiple Sui versions and matches what the bundled docs assume.
+When this plugin is enabled alongside `agentic-community-college`, ACC scans `~/.claude/plugins/installed_plugins.json` at startup, finds this manifest's `accContent.lessons`, and aggregates every lesson under `lessons/<slug>/` into its catalog.
 
----
-
-## Learning experience
-
-You open Claude Code in a clean workspace and type:
+## What's inside
 
 ```
-/sui-deepbook-course:start
+acc-deepbook-course/
+├── .claude-plugin/plugin.json    name=acc-deepbook-course, accContent declared, no executable bits
+├── README.md                     this file
+├── CLAUDE.md                     working notes for Claude when authoring lessons here
+└── lessons/                      one directory per lesson, each a hard copy of a reference app
+                                  plus its ordered section sequence, tests, and HTML artifact
 ```
 
-From there, the flow is:
+The first lesson, `01-market-stats`, is authored by ACC's `lesson-creator` skill against the reference app at `~/workspace/deepbook-sandbox-evaluation-apps/independent/01-market-stats/`.
 
-1. **Output-style + preflight check.** The plugin advises you to enable `learning-output-style@claude-plugins-official` (so Claude doesn't auto-implement), then probes that Node, pnpm, the Sui CLI, Docker, and the [DeepBook sandbox](https://github.com/MystenLabs/deepbook-sandbox) at `localhost:9009/manifest` are all reachable. Failures surface a one-line remediation.
-2. **Pick a path.** Today only `Orderbook Viewer` is registered. New paths drop in as content (no engine changes — see *Tech & build* below).
-3. **Personalize.** You set bounded knobs (e.g. `poll_interval_ms` 1000–30000 ms, `pool_subset` = `DEEP_SUI` / `SUI_USDC` / `both`). Defaults work; the values are substituted into prompts and reference code.
-4. **Walk the phases.** Each path is a sequence of *phases* (e.g. *Manifest → SDK Config*, *Resilient gRPC with Retry*, *Polling Loop*). Each phase contains one or more *spots* — a numbered range of lines in a real source file (`src/App.tsx:39-58`, etc.) that you, the student, fill in.
-5. **The spot loop.** For every spot, the `course-conductor` agent:
-   - Calls `nextSpot` and shows you the prompt, target file, and doc links.
-   - Waits for you to write code.
-   - Calls `verifySpot` — either `pnpm build` (compile mode) or a sandbox HTTP probe (simulate mode).
-6. **The help ladder.** When verification fails, help escalates only on request and only in order:
+## Authoring a new lesson
 
-   | Rung | Name        | What happens                                                              |
-   |------|-------------|---------------------------------------------------------------------------|
-   | 1    | Hint        | A short nudge — *what* to look up, not *what* to type.                    |
-   | 2    | Reference   | The reference snippet for the spot, shown inline.                         |
-   | 3    | Auto-write  | The MCP server writes the reference into your file (after snapshotting it) and re-runs verification. |
+Don't write lesson files by hand. From inside any ACC-enabled session, invoke the `lesson-creator` skill (`agentic-community-college:lesson-creator`). Point it at this repo and a reference codebase, and it scaffolds the whole lesson directory — `lesson.json`, `sections.json`, `sections/*.md`, `tests/`, `reference-app/`, `artifact/template.html`, and the validation pass — for you.
 
-   Rungs are **strictly gated**: rung 2 requires rung 1 used, rung 3 requires rung 2 used. The auto-write is committed by the MCP tool itself — never via a Bash side channel — so the snapshot/restore contract is airtight.
+## Running a lesson
 
-7. **Advance.** On pass, the cursor moves to the next spot; when the path is exhausted, the conductor congratulates you. State persists in `.sui-deepbook-course/` so you can quit and resume.
-
----
-
-## Tech & build
-
-The plugin is a small monorepo with three coordinating surfaces:
-
-```
-.claude-plugin/plugin.json   # Claude Code manifest
-commands/start.md            # /sui-deepbook-course:start → loads the skill
-skills/course-engine/        # Skill body → calls MCP tools, then hands off to…
-agents/course-conductor.md   # …the conductor agent (drives the spot loop)
-mcp/server/                  # TypeScript MCP server (stdio, 7 tools)
-paths/<slug>/                # Pure content: phases.json, phase explainers, rungs
-scripts/e2e/                 # End-to-end harness (in-process MCP client)
-tests/                       # vitest suites: unit + harness + cycle scenarios
-```
-
-### How the pieces talk
-
-```
-slash command  →  skill  →  conductor agent  →  MCP tools  →  state + content
-   (entry)      (loads)       (judgement)     (7 tools)      (paths/, .sui-deepbook-course/)
-```
-
-There is **no programmatic dispatch**. Slash command, skill, and agent are markdown that instruct Claude. The runtime contract lives in the MCP tools.
-
-### MCP tools (`mcp/server/src/tools/`)
-
-| Tool                  | Purpose                                                                     |
-|-----------------------|-----------------------------------------------------------------------------|
-| `start`               | Lists paths, reports output-style status and warnings.                      |
-| `runPreflightProbe`   | Runs one probe (`docker`, `pnpm`, `sui-cli`, `sandbox-manifest-reachable`, …) and optionally remediates. |
-| `selectPath`          | Activates a path, returns its personalization schema.                       |
-| `setPersonalization`  | Writes user values into state (validated against ranges in `path.json`).    |
-| `nextSpot`            | Returns the current spot view with template variables substituted.          |
-| `verifySpot`          | Runs the spot's verification (`pnpm build` or HTTP probe). Advances on pass.|
-| `requestHint`         | Returns rung 1/2 content, or performs the rung-3 auto-write + verify.       |
-
-### Path content shape
-
-A path is a directory — engine code never changes when adding one:
-
-```
-paths/01-orderbook-viewer/
-  path.json          # slug, title, personalization options + ranges
-  description.md     # learner-facing intro
-  phases.json        # ordered phases → spots (target_file, target_range, verification, rungs)
-  phases/p1-bootstrap.md    # per-phase explainer
-  rungs/p1-spot-1/{hint,reference,auto}.md
-  reference/App.tsx  # full reference implementation
-```
-
-Adding `02-fee-rebate-swap` is a content PR: drop a new directory, the registry picks it up.
-
-### Build & run
-
-```bash
-pnpm install
-cd mcp/server && pnpm install && pnpm build
-```
-
-Register the plugin by pointing Claude Code at `.claude-plugin/plugin.json`, then in any session:
-
-```
-/sui-deepbook-course:start
-```
-
-To run the MCP server standalone (for protocol debugging):
-
-```bash
-cd mcp/server && pnpm start
-```
-
-### Tests
-
-```bash
-pnpm test
-```
-
-The suite covers schema validation, the phase engine, the help ladder's gating contract, the preflight probes, the auto-write snapshot/restore contract, and an in-process MCP harness that walks a full lesson end-to-end (`tests/harness.lesson.test.ts`).
-
-### How it was built
-
-The repo was bootstrapped via [Code Forge](https://github.com/) — a multi-agent build pipeline — across six TDD cycles plus a Phase F polish pass. The cycle artifacts (specs, plans, evaluator notes) live under `.forge/` and are kept in-tree as the audit trail for protocol decisions (e.g. why the help ladder is strictly ordered, why rung 3 must not use Bash).
-
----
-
-## Credits
-
-The lessons run against [Mysten Labs' `deepbook-sandbox`](https://github.com/MystenLabs/deepbook-sandbox) — a local Sui validator with DeepBook v3 packages and pools pre-deployed and a faucet HTTP server that serves the deployment manifest. The course preflight tells you to clone it if missing, deploys it on request when the manifest endpoint is unreachable, and queries it during lessons; this repo doesn't fork or vendor it.
+1. Install (or enable) both this plugin **and** `agentic-community-college` in Claude Code.
+2. Run `/agentic-community-college:start` from any project directory.
+3. Pick a lesson by namespaced slug (e.g. `acc-deepbook-course@local/01-market-stats`).
+4. ACC drives you through it — pick `learning` or `explanatory` mode, set personalization if any, and walk the section sequence.
