@@ -5,6 +5,11 @@
   "personalization_options": [],
   "build_command": "pnpm install && pnpm vitest run",
   "test_command": "pnpm vitest run",
+  "prerequisites": [
+    "docker-running",
+    "sandbox-repo-present",
+    "sandbox-manifest-reachable"
+  ],
   "workspace": {
     "host": "reference-app",
     "host_install_command": "pnpm install",

@@ -1,6 +1,6 @@
 # Section 1 — Manifest bootstrap
 
-The DeepBook sandbox writes its deployment state to `sandbox/deployments/localnet.json`. Before we can ask the chain anything, we need to read that file, validate its shape, and produce two things:
+The DeepBook sandbox writes its deployment state to `~/workspace/deepbook-sandbox/sandbox/deployments/localnet.json` (the path is hard-coded in the reference app's `vite.config.ts` middleware — if your sandbox checkout lives elsewhere, the lesson's preflight should have caught it; either symlink the directory into place or move the checkout). Before we can ask the chain anything, we need to read that file, validate its shape, and produce two things:
 
 1. The `deepbookPackageId` (every later RPC call needs it as a type-arg).
 2. A typed list of `PoolDescriptor[]` — one per pool the sandbox deployed.

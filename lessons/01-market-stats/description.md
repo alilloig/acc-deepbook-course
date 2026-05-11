@@ -9,6 +9,13 @@
 - Comfortable reading JSON-RPC request/response shapes.
 - *Helpful but not required:* prior exposure to Sui object ownership and shared objects.
 
+**Environment.** This lesson reads from the live DeepBook sandbox. Before starting you need:
+- The [`deepbook-sandbox`](https://github.com/MystenLabs/deepbook-sandbox) repo cloned at `~/workspace/deepbook-sandbox/` (this path is load-bearing — the reference app's Vite middleware looks for `~/workspace/deepbook-sandbox/sandbox/deployments/localnet.json`).
+- Docker Desktop running.
+- `pnpm deploy-all` executed from the sandbox repo at least once, so `localnet.json` exists and `localhost:9000` answers JSON-RPC.
+
+The conductor will run automated checks for all three before the lesson starts. If the manifest is missing or stale, it will offer to run `pnpm deploy-all --quick` for you.
+
 **The deliverable.** When you reach the final section, `pnpm vitest run` in your workspace passes the same 24-test suite the reference implementation passes. The test suite is the equivalence gate — your code doesn't have to look like the reference, it just has to behave like it.
 
 **Estimated time.** 90–120 minutes if you write each load-bearing piece yourself in `learning` mode. 30–45 minutes if you pick `explanatory` mode and read along.
