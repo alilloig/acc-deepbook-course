@@ -1,6 +1,6 @@
 {
   "name": "acc-deepbook-course",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "DeepBook content for the Agentic Community College (ACC) framework. Bundles a set of hands-on lessons that walk learners through building Sui DeepBook integrations end-to-end.",
   "author": {
     "name": "alilloig"
@@ -66,7 +66,7 @@
         "id": "sui-pilot-enabled",
         "kind": "claude-plugin-enabled",
         "message_pass": "sui-pilot plugin is enabled.",
-        "message_fail": "Enable the sui-pilot plugin for Move/Sui doc grounding: `claude plugins enable sui-pilot@contract-hero`.",
+        "message_fail": "Enable sui-pilot for Move/Sui doc grounding: `claude plugins enable sui-pilot@contract-hero` (the contract-hero marketplace is the canonical home; if you've installed sui-pilot from a different marketplace, edit lesson.json's prerequisites to reference your tag).",
         "params": {
           "plugin_key": "sui-pilot@contract-hero"
         }
@@ -84,7 +84,7 @@
         "id": "sandbox-manifest-reachable",
         "kind": "http-get",
         "message_pass": "Sandbox faucet manifest is reachable on http://localhost:9009/manifest.",
-        "message_fail": "Sandbox faucet manifest is not reachable on http://localhost:9009/manifest. Bring up the Docker stack and run `pnpm deploy-all` from ~/workspace/deepbook-sandbox/sandbox.",
+        "message_fail": "Sandbox faucet manifest is not reachable on http://localhost:9009/manifest. Start Docker, then run `pnpm deploy-all` from ~/workspace/deepbook-sandbox/sandbox.",
         "params": {
           "url": "http://localhost:9009/manifest",
           "expected_status": 200,

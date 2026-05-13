@@ -30,7 +30,6 @@
   header { margin-bottom: 2rem; }
   h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
   h2 { font-size: 1.1rem; margin: 1.6rem 0 .5rem; }
-  h3 { font-size: 0.95rem; margin: 1rem 0 .35rem; color: var(--accent); }
   p { margin: .5rem 0; }
   code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; color: #f0f3f7; font-size: 0.88em; }
   .lede { color: var(--muted); }
@@ -90,8 +89,6 @@
     width: 0%;
     transition: width .35s ease;
   }
-  .legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); margin: .5rem 0; }
-  .legend .sw { display: inline-block; width: 10px; height: 10px; vertical-align: middle; border-radius: 2px; margin-right: 4px; }
 </style>
 </head>
 <body>
@@ -514,7 +511,7 @@
             applyAccState(s);
           }
         }
-      } catch (e) {
+      } catch {
         /* swallow — fetch may be blocked on file://, and that's fine: the
            inlined state has already set up the initial render. The learner
            refreshes the page between sections to pick up new state. */

@@ -12,9 +12,11 @@
 **Environment.** This lesson reads from the live DeepBook sandbox. Before starting you need:
 - The [`deepbook-sandbox`](https://github.com/MystenLabs/deepbook-sandbox) repo cloned at `~/workspace/deepbook-sandbox/` (this path is load-bearing — the reference app's Vite middleware looks for `~/workspace/deepbook-sandbox/sandbox/deployments/localnet.json`).
 - Docker Desktop running.
-- `pnpm deploy-all` executed from the sandbox repo at least once, so `localnet.json` exists and `localhost:9000` answers JSON-RPC.
+- `pnpm deploy-all` executed from the sandbox repo at least once, so the stack is up and both ports answer:
+  - **`localhost:9000`** — Sui JSON-RPC (every per-pool fetch the lesson writes will hit this).
+  - **`localhost:9009/manifest`** — the sandbox faucet's deployment manifest (the Vite middleware serves it to the browser).
 
-The conductor will run automated checks for all three before the lesson starts. If the manifest is missing or stale, it will offer to run `pnpm deploy-all --quick` for you.
+The conductor will run automated checks for all of the above before the lesson starts. If the `localhost:9009/manifest` check fails — typically because the stack is down or the deploy is stale — it will offer to run `pnpm deploy-all --quick` for you.
 
 **The deliverable.** When you reach the final section, `pnpm vitest run` in your workspace passes the same 24-test suite the reference implementation passes. The test suite is the equivalence gate — your code doesn't have to look like the reference, it just has to behave like it.
 
