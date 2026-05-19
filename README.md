@@ -4,6 +4,54 @@ A **content plugin** for the [Agentic Community College (ACC)](https://github.co
 
 This repository was previously `sui-mcp-course` and bundled both runtime + content. The runtime moved to `agentic-community-college` so the same engine can host courses for Walrus, Seal, Move, etc. without a fork.
 
+## Install
+
+The course is distributed through the [`contract-hero`](https://github.com/contract-hero/plugin-marketplace) Claude Code marketplace. From inside Claude Code:
+
+```text
+/plugin marketplace add contract-hero/plugin-marketplace
+/plugin install agentic-community-college@contract-hero
+/plugin install acc-deepbook-course@contract-hero
+```
+
+Then start a lesson with:
+
+```text
+/acc-deepbook-course:start
+```
+
+(or `/agentic-community-college:start` if you have multiple ACC courses installed and want the full catalog).
+
+## Dependencies
+
+The course's prerequisite probes are declared in `.claude-plugin/plugin.json` and run automatically when you start a lesson. If a probe fails, ACC stops and shows a remediation message. Most of these are **not** auto-installed — bring them up front to avoid bouncing off the probe gate.
+
+### Required Claude Code plugins
+
+All three are on the `contract-hero` marketplace:
+
+| Plugin | Why | Install |
+|---|---|---|
+| `agentic-community-college` | Runtime that drives every lesson. | `/plugin install agentic-community-college@contract-hero` |
+| `sui-pilot` | Doc-grounded Sui / Move guidance during lessons. | `/plugin install sui-pilot@contract-hero` |
+| `toolkit` | `publish-html`, `html-artifact`, `for-dummies`, `move-call-chains` — used by the post-lesson publish offer and in-section scratch explainers. | `/plugin install toolkit@contract-hero` |
+
+### System requirements
+
+| Tool | Version | Used for |
+|---|---|---|
+| Node.js | 18+ | Running lesson reference apps + tests. |
+| pnpm | latest | Package manager (npm/yarn are not supported). |
+| Docker | running | Spinning up the local DeepBook sandbox. |
+| Sui CLI | any current | Sandbox bring-up scripts use it directly. |
+
+### External setup (manual)
+
+ACC's probes check for these but cannot install them:
+
+- **deepbook-sandbox checkout at `~/workspace/deepbook-sandbox/`** — clone [MystenLabs/deepbook-sandbox](https://github.com/MystenLabs/deepbook-sandbox) to that exact path. The lesson reference apps' `vite.config.ts` reads from it directly, so the path is load-bearing.
+- **Sandbox faucet running on `http://localhost:9009`** — from the sandbox checkout, run `pnpm deploy-all` inside `~/workspace/deepbook-sandbox/sandbox/`. ACC will offer to run `pnpm deploy-all --quick` as a remediation if the faucet isn't reachable when a lesson starts.
+
 ## How it plugs in
 
 `.claude-plugin/plugin.json` declares:
@@ -21,7 +69,8 @@ When this plugin is enabled alongside `agentic-community-college`, ACC scans `~/
 
 ```
 acc-deepbook-course/
-├── .claude-plugin/plugin.json    name=acc-deepbook-course, accContent declared, no executable bits
+├── .claude-plugin/plugin.json    name=acc-deepbook-course, accContent + probes declared
+├── commands/start.md             ships /acc-deepbook-course:start
 ├── README.md                     this file
 ├── CLAUDE.md                     working notes for Claude when authoring lessons here
 └── lessons/                      one directory per lesson, each a hard copy of a reference app
@@ -36,7 +85,7 @@ Don't write lesson files by hand. From inside any ACC-enabled session, invoke th
 
 ## Running a lesson
 
-1. Install (or enable) both this plugin **and** `agentic-community-college` in Claude Code.
-2. Run `/agentic-community-college:start` from any project directory.
-3. Pick a lesson by namespaced slug (e.g. `acc-deepbook-course@local/01-market-stats`).
+1. Install (or enable) both this plugin **and** `agentic-community-college` in Claude Code (see **Install** above).
+2. Run `/acc-deepbook-course:start` (or `/agentic-community-college:start`) from any project directory.
+3. Pick a lesson by namespaced slug (e.g. `acc-deepbook-course@contract-hero/01-market-stats`).
 4. ACC drives you through it — pick `learning` or `explanatory` mode, set personalization if any, and walk the section sequence.
